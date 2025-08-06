@@ -1,0 +1,58 @@
+services:
+  sonarqube:
+    image: sonarqube:lts
+    container_name: sonarqube
+    depends_on:
+      - db
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonarqube
+      SONAR_JDBC_PASSWORD: sonarpass
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - sonarqube-network
+  db:
+    image: postgres:15
+    container_name: postgres-sonar
+    environment:
+      POSTGRES_USER: sonarqube
+      POSTGRES_PASSWORD: sonarpass
+      POSTGRES_DB: sonarqube
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    
+    networks:
+      - veritas-network
+  sonarscanner:
+    image: sonarsource/sonar-scanner-cli
+    container_name: sonarscanner
+    depends_on:
+      - sonarqube
+    volumes:
+      - .:/usr/src
+      - sonar-scanner_data:/opt/sonar-scanner
+    environment:
+      SONAR_HOST_URL: ${SONAR_HOST_URL:-http://sonarqube:9000}
+      SONAR_PROJECT_KEY: ${SONAR_PROJECT_KEY}
+      SONAR_LOGIN: ${SONAR_LOGIN}
+    networks:
+      - sonarqube-network
+    command: >
+      sonar-scanner
+        -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+        -Dsonar.sources=.
+        -Dsonar.host.url=${SONAR_HOST_URL}
+        -Dsonar.login=${SONAR_LOGIN}
+
+  volumes:
+    sonarqube_data:
+    sonarqube_extensions:
+    sonarqube_logs:
+    postgresql_data:
+    sonar-scanner_data:
